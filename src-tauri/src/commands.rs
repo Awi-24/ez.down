@@ -36,6 +36,18 @@ pub fn write_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, content).map_err(|e| format!("Failed to save {path}: {e}"))
 }
 
+/// Write raw bytes to disk, creating parent directories if needed.
+#[tauri::command]
+pub fn write_bytes(path: String, content: Vec<u8>) -> Result<(), String> {
+    if let Some(parent) = Path::new(&path).parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create folder {}: {e}", parent.display()))?;
+        }
+    }
+    std::fs::write(&path, content).map_err(|e| format!("Failed to save {path}: {e}"))
+}
+
 /// List the immediate children of a directory. Directories first, then files,
 /// each alphabetically. Hidden entries (dotfiles) are skipped.
 #[tauri::command]

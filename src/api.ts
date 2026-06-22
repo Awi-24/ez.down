@@ -13,6 +13,9 @@ export const readFile = (path: string): Promise<string> =>
 export const writeFile = (path: string, content: string): Promise<void> =>
   invoke("write_file", { path, content });
 
+export const writeBytes = (path: string, content: Uint8Array): Promise<void> =>
+  invoke("write_bytes", { path, content: Array.from(content) });
+
 export const listDir = (path: string): Promise<DirEntry[]> =>
   invoke("list_dir", { path });
 

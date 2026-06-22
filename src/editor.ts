@@ -33,7 +33,9 @@ export async function mountEditor(
     defaultValue: value,
     featureConfigs: {
       placeholder: {
-        text: "Write here… type / to insert blocks",
+        text: readOnly
+          ? "Reading mode — open a document to view formatted Markdown."
+          : "Write here… type / to insert blocks",
       },
     },
   });

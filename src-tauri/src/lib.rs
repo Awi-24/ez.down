@@ -42,6 +42,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::read_file,
             commands::write_file,
+            commands::write_bytes,
             commands::list_dir,
             commands::file_meta,
             commands::take_pending_open,

@@ -3,13 +3,13 @@ export type ThemeId =
   | "github"
   | "vscode-light"
   | "solarized-light"
+  | "macos"
   | "dracula"
   | "nord"
   | "solarized-dark"
   | "cyberpunk"
   | "vscode-dark";
 
-const STORAGE_KEY = "ezdown.theme";
 const DEFAULT: ThemeId = "notebook";
 
 export const THEMES: ThemeId[] = [
@@ -17,6 +17,7 @@ export const THEMES: ThemeId[] = [
   "github",
   "vscode-light",
   "solarized-light",
+  "macos",
   "dracula",
   "nord",
   "solarized-dark",
@@ -24,12 +25,37 @@ export const THEMES: ThemeId[] = [
   "vscode-dark",
 ];
 
-export function loadTheme(): ThemeId {
-  const saved = localStorage.getItem(STORAGE_KEY) as ThemeId | null;
-  return saved && THEMES.includes(saved) ? saved : DEFAULT;
-}
+export const THEME_LABELS: Record<ThemeId, string> = {
+  notebook: "Notebook",
+  github: "GitHub",
+  "vscode-light": "VS Code Light",
+  "solarized-light": "Solarized Light",
+  macos: "macOS",
+  dracula: "Dracula",
+  nord: "Nord",
+  "solarized-dark": "Solarized Dark",
+  cyberpunk: "Cyberpunk",
+  "vscode-dark": "VS Code Dark",
+};
 
+export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
+  {
+    label: "Light",
+    ids: ["notebook", "github", "vscode-light", "solarized-light", "macos"],
+  },
+  {
+    label: "Dark",
+    ids: ["dracula", "nord", "solarized-dark", "cyberpunk", "vscode-dark"],
+  },
+];
+
+/** Apply a skin to the document root (persistence lives in preferences.ts). */
 export function applyTheme(theme: ThemeId): void {
   document.documentElement.setAttribute("data-theme", theme);
-  localStorage.setItem(STORAGE_KEY, theme);
 }
+
+export function isThemeId(value: string): value is ThemeId {
+  return THEMES.includes(value as ThemeId);
+}
+
+export { DEFAULT as DEFAULT_THEME };

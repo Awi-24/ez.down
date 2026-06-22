@@ -10,36 +10,32 @@
       <aside id="sidebar" class="sidebar">
         <div class="sidebar-header">
           <span class="sidebar-title">ez.down</span>
-          <div class="sidebar-actions">
+          <div class="sidebar-actions edit-only">
             <button id="new-file" class="icon-btn" title="New document (Ctrl+N)"></button>
             <button id="open-file" class="icon-btn" title="Open file (Ctrl+O)"></button>
             <button id="open-folder" class="icon-btn" title="Open folder"></button>
-            <button id="toggle-sidebar" class="icon-btn" title="Collapse sidebar (Ctrl+B)"></button>
           </div>
         </div>
         <div id="file-tree" class="file-tree"></div>
+        <div id="settings-panel" class="settings-panel" hidden></div>
+        <footer class="sidebar-footer">
+          <button id="settings-toggle" class="sidebar-settings-btn" type="button" aria-expanded="false"></button>
+        </footer>
       </aside>
 
       <main class="workspace">
         <div class="topbar">
-          <button id="show-sidebar" class="icon-btn topbar-toggle" title="Show sidebar (Ctrl+B)"></button>
+          <div class="topbar-leading">
+            <div class="window-dots" aria-hidden="true">
+              <span class="window-dot close"></span>
+              <span class="window-dot minimize"></span>
+              <span class="window-dot maximize"></span>
+            </div>
+            <button id="toggle-sidebar" class="icon-btn" title="Toggle sidebar (Ctrl+B)"></button>
+          </div>
           <div id="tabbar" class="tabbar"></div>
           <div class="topbar-actions">
-            <select id="theme-select" class="theme-select" title="Appearance">
-              <optgroup label="Light">
-                <option value="notebook">Notebook</option>
-                <option value="github">GitHub</option>
-                <option value="vscode-light">VS Code Light</option>
-                <option value="solarized-light">Solarized Light</option>
-              </optgroup>
-              <optgroup label="Dark">
-                <option value="dracula">Dracula</option>
-                <option value="nord">Nord</option>
-                <option value="solarized-dark">Solarized Dark</option>
-                <option value="cyberpunk">Cyberpunk</option>
-                <option value="vscode-dark">VS Code Dark</option>
-              </optgroup>
-            </select>
+            <button id="export-pdf" class="icon-btn" title="Export to PDF"></button>
           </div>
         </div>
 
@@ -50,7 +46,7 @@
             <h1>ez.down</h1>
             <p>Edit formatted Markdown without seeing the syntax.</p>
             <div class="empty-actions">
-              <button id="empty-new-file" class="btn btn-primary"></button>
+              <button id="empty-new-file" class="btn btn-primary edit-only"></button>
               <button id="empty-open-file" class="btn"></button>
               <button id="empty-open-folder" class="btn"></button>
             </div>

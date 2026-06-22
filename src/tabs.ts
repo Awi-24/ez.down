@@ -115,6 +115,15 @@ export class TabsManager {
     }
   }
 
+  closeOthers(keepId: number): void {
+    const keep = this.tabs.find((t) => t.id === keepId);
+    if (!keep) return;
+    this.tabs = this.tabs.filter((t) => t.id === keepId);
+    this.activeId = keepId;
+    this.render();
+    this.onActivate(keep);
+  }
+
   paths(): string[] {
     return this.tabs.map((t) => t.path).filter((p): p is string => !!p);
   }
@@ -124,6 +133,7 @@ export class TabsManager {
     for (const tab of this.tabs) {
       const el = document.createElement("div");
       el.className = "tab" + (tab.id === this.activeId ? " active" : "");
+      el.dataset.tabId = String(tab.id);
       el.title = tab.path ?? tab.name;
 
       if (tab.dirty) {

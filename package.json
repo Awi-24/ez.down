@@ -1,6 +1,6 @@
 {
   "name": "ez.down",
-  "version": "0.1.0",
+  "version": "1.0.0-beta.1",
   "description": "A lightweight, beautiful native WYSIWYG Markdown editor and reader.",
   "license": "MIT",
   "type": "module",
@@ -15,7 +15,8 @@
     "@milkdown/kit": "^7.21.2",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.1",
-    "@tauri-apps/plugin-fs": "^2.5.1"
+    "@tauri-apps/plugin-fs": "^2.5.1",
+    "html2pdf.js": "^0.14.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.3",

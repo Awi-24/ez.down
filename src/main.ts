@@ -8,13 +8,21 @@ import {
   setWatchedPaths,
   fileMeta,
   dirname,
+  basename,
 } from "./api";
 import { mountEditor, EditorHandle } from "./editor";
 import { TabsManager, Tab } from "./tabs";
 import { Sidebar } from "./sidebar";
-import { applyTheme, loadTheme, ThemeId } from "./themes";
 import { icons, iconLabel } from "./icons";
 import { showStatusbar, updateMetrics } from "./statusbar";
+import { exportEditorToPdf } from "./pdf";
+import { initContextMenu } from "./context-menu";
+import {
+  applyPreferences,
+  loadPreferences,
+  onPreferencesChange,
+} from "./preferences";
+import { initSettingsPanel } from "./settings-panel";
 
 import "./styles.css";
 import "./themes/skins.css";
@@ -28,13 +36,14 @@ const editorHost = document.getElementById("editor-host") as HTMLElement;
 const emptyState = document.getElementById("empty-state") as HTMLElement;
 const tabbar = document.getElementById("tabbar") as HTMLElement;
 const fileTree = document.getElementById("file-tree") as HTMLElement;
-const themeSelect = document.getElementById("theme-select") as HTMLSelectElement;
+const settingsPanel = document.getElementById("settings-panel") as HTMLElement;
+const settingsToggle = document.getElementById("settings-toggle") as HTMLButtonElement;
 const appEl = document.getElementById("app") as HTMLElement;
 const openFolderBtn = document.getElementById("open-folder") as HTMLButtonElement;
 const openFileBtn = document.getElementById("open-file") as HTMLButtonElement;
 const newFileBtn = document.getElementById("new-file") as HTMLButtonElement;
 const toggleSidebarBtn = document.getElementById("toggle-sidebar") as HTMLButtonElement;
-const showSidebarBtn = document.getElementById("show-sidebar") as HTMLButtonElement;
+const exportPdfBtn = document.getElementById("export-pdf") as HTMLButtonElement;
 const emptyNewFile = document.getElementById("empty-new-file") as HTMLButtonElement;
 const emptyOpenFile = document.getElementById("empty-open-file") as HTMLButtonElement;
 const emptyOpenFolder = document.getElementById("empty-open-folder") as HTMLButtonElement;
@@ -43,19 +52,25 @@ newFileBtn.innerHTML = icons.filePlus;
 openFileBtn.innerHTML = icons.file;
 openFolderBtn.innerHTML = icons.folderOpen;
 toggleSidebarBtn.innerHTML = icons.panel;
-showSidebarBtn.innerHTML = icons.panel;
+exportPdfBtn.innerHTML = icons.filePdf;
 emptyNewFile.innerHTML = iconLabel(icons.filePlus, "New document");
 emptyOpenFile.innerHTML = iconLabel(icons.file, "Open file");
 emptyOpenFolder.innerHTML = iconLabel(icons.folderOpen, "Open folder");
 
 // --- Editor lifecycle ------------------------------------------------------
 let editor: EditorHandle | null = null;
-// Suppress change events fired while we are (re)mounting content programmatically.
 let loading = false;
-// Last-modified time (epoch ms) of the active tab's file on disk.
 let activeModified: number | null = null;
-// Directory of the active file, used to resolve relative image paths.
 let baseDir: string | null = null;
+let hasOpenDocument = false;
+
+function isReaderMode(): boolean {
+  return loadPreferences().readerMode;
+}
+
+function refreshStatusbarVisibility(): void {
+  showStatusbar(hasOpenDocument && loadPreferences().showStatusbar);
+}
 
 async function showTab(tab: Tab): Promise<void> {
   loading = true;
@@ -66,16 +81,23 @@ async function showTab(tab: Tab): Promise<void> {
   editorHost.innerHTML = "";
   emptyState.hidden = true;
   editorHost.hidden = false;
-  showStatusbar(true);
+  hasOpenDocument = true;
+  refreshStatusbarVisibility();
 
-  editor = await mountEditor(editorHost, tab.workingContent, (md) => {
-    if (loading) return;
-    tabs.setWorking(tab.id, md);
-    updateMetrics(md, activeModified);
-  });
+  const readOnly = isReaderMode();
+  editor = await mountEditor(
+    editorHost,
+    tab.workingContent,
+    (md) => {
+      if (loading || readOnly) return;
+      tabs.setWorking(tab.id, md);
+      updateMetrics(md, activeModified);
+    },
+    readOnly
+  );
   loading = false;
   editorHost.classList.remove("fade-in");
-  void editorHost.offsetWidth; // restart the entrance animation
+  void editorHost.offsetWidth;
   editorHost.classList.add("fade-in");
 
   sidebar.setActive(tab.path);
@@ -93,13 +115,14 @@ function showEmpty(): void {
   editorHost.innerHTML = "";
   editorHost.hidden = true;
   emptyState.hidden = false;
-  showStatusbar(false);
+  hasOpenDocument = false;
+  refreshStatusbarVisibility();
   sidebar.setActive(null);
 }
 
 function captureActiveWorking(): void {
   const active = tabs.active;
-  if (active && editor && !loading) {
+  if (active && editor && !loading && !isReaderMode()) {
     tabs.setWorking(active.id, editor.getMarkdown());
   }
 }
@@ -139,6 +162,9 @@ async function openFile(path: string): Promise<void> {
   try {
     const content = await readFile(path);
     tabs.open(path, content);
+    if (loadPreferences().sidebarCollapsedOnStart) {
+      setSidebarCollapsed(true);
+    }
   } catch (e) {
     console.error(e);
     alert(`Could not open file:\n${e}`);
@@ -146,6 +172,7 @@ async function openFile(path: string): Promise<void> {
 }
 
 function newFile(): void {
+  if (isReaderMode()) return;
   captureActiveWorking();
   tabs.open(null, "");
 }
@@ -161,6 +188,7 @@ async function pickFolder(): Promise<void> {
 }
 
 async function saveActive(): Promise<void> {
+  if (isReaderMode()) return;
   const active = tabs.active;
   if (!active || !editor) return;
   const content = editor.getMarkdown();
@@ -196,10 +224,6 @@ async function refreshWatched(): Promise<void> {
 }
 
 // --- Local image rendering -------------------------------------------------
-// The webview cannot load local files by raw path, and relative paths in a
-// Markdown file resolve against the file's folder. We rewrite the *displayed*
-// src of each <img> to a Tauri asset URL (the node's stored src — and thus the
-// saved Markdown — is left untouched).
 function resolveImageSrc(src: string): string {
   if (/^(https?:|data:|blob:|asset:)/i.test(src) || src.includes("asset.localhost")) {
     return src;
@@ -243,19 +267,40 @@ const SIDEBAR_KEY = "ezdown.sidebar.collapsed";
 function setSidebarCollapsed(collapsed: boolean): void {
   appEl.classList.toggle("sidebar-collapsed", collapsed);
   localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+  toggleSidebarBtn.title = collapsed
+    ? "Show sidebar (Ctrl+B)"
+    : "Collapse sidebar (Ctrl+B)";
 }
 function toggleSidebar(): void {
   setSidebarCollapsed(!appEl.classList.contains("sidebar-collapsed"));
 }
 
-// --- Theme -----------------------------------------------------------------
-function initTheme(): void {
-  const theme = loadTheme();
-  applyTheme(theme);
-  themeSelect.value = theme;
-  themeSelect.addEventListener("change", () => {
-    applyTheme(themeSelect.value as ThemeId);
+async function exportPdf(): Promise<void> {
+  const active = tabs.active;
+  if (!active || !editor) return;
+  captureActiveWorking();
+
+  const prose = editorHost.querySelector(".milkdown .ProseMirror");
+  if (!prose) return;
+
+  const baseName = active.path
+    ? basename(active.path).replace(/\.(md|markdown|mdown|mkd)$/i, "")
+    : "untitled";
+  const chosen = await saveDialog({
+    defaultPath: `${baseName}.pdf`,
+    filters: [{ name: "PDF", extensions: ["pdf"] }],
   });
+  if (!chosen) return;
+
+  exportPdfBtn.disabled = true;
+  try {
+    await exportEditorToPdf(prose as HTMLElement, chosen, baseName);
+  } catch (e) {
+    console.error(e);
+    alert(`Failed to export PDF:\n${e}`);
+  } finally {
+    exportPdfBtn.disabled = false;
+  }
 }
 
 // --- Wiring ----------------------------------------------------------------
@@ -266,7 +311,7 @@ emptyNewFile.addEventListener("click", () => newFile());
 emptyOpenFile.addEventListener("click", () => void pickFile());
 emptyOpenFolder.addEventListener("click", () => void pickFolder());
 toggleSidebarBtn.addEventListener("click", () => toggleSidebar());
-showSidebarBtn.addEventListener("click", () => setSidebarCollapsed(false));
+exportPdfBtn.addEventListener("click", () => void exportPdf());
 
 window.addEventListener("keydown", (e) => {
   const mod = e.ctrlKey || e.metaKey;
@@ -285,7 +330,6 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// External change to an open file → reload silently if there are no local edits.
 void listen<{ path: string }>("file-changed", async (event) => {
   const tab = tabs.findByPath(event.payload.path);
   if (!tab || tab.dirty) return;
@@ -304,15 +348,46 @@ void listen<{ path: string }>("file-changed", async (event) => {
   }
 });
 
-// A second instance forwarded files to open.
 void listen<string[]>("open-files", (event) => {
   for (const path of event.payload) void openFile(path);
 });
 
 // --- Startup ---------------------------------------------------------------
 async function start(): Promise<void> {
-  initTheme();
-  setSidebarCollapsed(localStorage.getItem(SIDEBAR_KEY) === "1");
+  const prefs = loadPreferences();
+  applyPreferences(prefs);
+  initSettingsPanel(settingsToggle, settingsPanel);
+
+  onPreferencesChange((next) => {
+    applyPreferences(next);
+    refreshStatusbarVisibility();
+    if (tabs.active) void showTab(tabs.active);
+  });
+
+  initContextMenu({
+    onNewFile: () => newFile(),
+    onOpenFile: () => void pickFile(),
+    onOpenFolder: () => void pickFolder(),
+    onSave: () => void saveActive(),
+    onExportPdf: () => void exportPdf(),
+    onOpenFilePath: (path) => void openFile(path),
+    onActivateTab: (tabId) => tabs.activate(tabId),
+    onCloseTab: (tabId) => tabs.close(tabId),
+    onCloseOtherTabs: (tabId) => tabs.closeOthers(tabId),
+    getTabId: (el) => {
+      const tab = el.closest(".tab") as HTMLElement | null;
+      const id = tab?.dataset.tabId;
+      return id ? Number(id) : null;
+    },
+    getFilePath: (el) => el.closest(".tree-file")?.getAttribute("data-path") ?? null,
+  });
+
+  if (prefs.sidebarCollapsedOnStart) {
+    setSidebarCollapsed(true);
+  } else {
+    setSidebarCollapsed(localStorage.getItem(SIDEBAR_KEY) === "1");
+  }
+
   showEmpty();
 
   try {

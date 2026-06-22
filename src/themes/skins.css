@@ -1,0 +1,151 @@
+/* ez.down skins. Each theme only declares shell tokens; the editor inherits
+   them through the [data-theme] .milkdown mapping in styles.css. To add a new
+   skin: copy a block, give it a [data-theme="id"] selector, tweak the tokens,
+   then register the id in themes/index.ts and a matching <option> in index.html. */
+
+/* ---- Notebook (default) — bright, brand cream + navy, serif reading font --- */
+[data-theme="notebook"] {
+  --bg: #faf8f1;
+  --fg: #222e3a;
+  --panel: #f1eee3;
+  --surface: #fffefa;
+  --border: #e3ded0;
+  --muted: #8a8474;
+  --accent: #2b3a4b;
+  --on-accent: #ffffff;
+  --hover: #ebe7da;
+  --selected: #dde6ee;
+  --code: #b5651d;
+  --font-content: "Iowan Old Style", "Palatino Linotype", "Book Antiqua",
+    Palatino, Georgia, serif;
+}
+
+/* ---- GitHub (light) ------------------------------------------------------- */
+[data-theme="github"] {
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --panel: #f6f8fa;
+  --surface: #ffffff;
+  --border: #d0d7de;
+  --muted: #656d76;
+  --accent: #0969da;
+  --on-accent: #ffffff;
+  --hover: #eaeef2;
+  --selected: #ddf4ff;
+  --code: #cf222e;
+}
+
+/* ---- VS Code Light -------------------------------------------------------- */
+[data-theme="vscode-light"] {
+  --bg: #ffffff;
+  --fg: #1f1f1f;
+  --panel: #f3f3f3;
+  --surface: #ffffff;
+  --border: #e0e0e0;
+  --muted: #767676;
+  --accent: #005fb8;
+  --on-accent: #ffffff;
+  --hover: #ededed;
+  --selected: #cce5ff;
+  --code: #a31515;
+}
+
+/* ---- Solarized Light ------------------------------------------------------ */
+[data-theme="solarized-light"] {
+  --bg: #fdf6e3;
+  --fg: #586e75;
+  --panel: #eee8d5;
+  --surface: #fdf6e3;
+  --border: #e0dab9;
+  --muted: #93a1a1;
+  --accent: #268bd2;
+  --on-accent: #fdf6e3;
+  --hover: #eee8d5;
+  --selected: #e3dcc0;
+  --code: #2aa198;
+}
+
+/* ---- Dracula (dark) ------------------------------------------------------- */
+[data-theme="dracula"] {
+  --bg: #282a36;
+  --fg: #f8f8f2;
+  --panel: #21222c;
+  --surface: #2b2d3a;
+  --border: #44475a;
+  --muted: #6272a4;
+  --accent: #bd93f9;
+  --on-accent: #21222c;
+  --hover: #343746;
+  --selected: #44475a;
+  --code: #ff79c6;
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* ---- Nord (dark) ---------------------------------------------------------- */
+[data-theme="nord"] {
+  --bg: #2e3440;
+  --fg: #d8dee9;
+  --panel: #3b4252;
+  --surface: #3b4252;
+  --border: #434c5e;
+  --muted: #7b88a1;
+  --accent: #88c0d0;
+  --on-accent: #2e3440;
+  --hover: #3b4252;
+  --selected: #434c5e;
+  --code: #a3be8c;
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+/* ---- Solarized Dark ------------------------------------------------------- */
+[data-theme="solarized-dark"] {
+  --bg: #002b36;
+  --fg: #93a1a1;
+  --panel: #073642;
+  --surface: #073642;
+  --border: #0a4250;
+  --muted: #586e75;
+  --accent: #268bd2;
+  --on-accent: #fdf6e3;
+  --hover: #073642;
+  --selected: #0a4250;
+  --code: #2aa198;
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* ---- Cyberpunk (dark, neon) ----------------------------------------------- */
+[data-theme="cyberpunk"] {
+  --bg: #0b0118;
+  --fg: #ece6ff;
+  --panel: #14082a;
+  --surface: #1a0b35;
+  --border: #311a52;
+  --muted: #8a78b8;
+  --accent: #ff2e97;
+  --on-accent: #0b0118;
+  --hover: #1f1040;
+  --selected: #3a1f63;
+  --code: #00f5d4;
+  --shadow-1: 0 1px 4px rgba(255, 46, 151, 0.25);
+  --shadow-2: 0 4px 22px rgba(0, 245, 212, 0.22);
+}
+
+/* ---- VS Code Dark --------------------------------------------------------- */
+[data-theme="vscode-dark"] {
+  --bg: #1e1e1e;
+  --fg: #d4d4d4;
+  --panel: #252526;
+  --surface: #252526;
+  --border: #333333;
+  --muted: #858585;
+  --accent: #569cd6;
+  --on-accent: #ffffff;
+  --hover: #2a2d2e;
+  --selected: #094771;
+  --code: #ce9178;
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.5);
+}

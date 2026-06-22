@@ -30,25 +30,24 @@ pub fn set_watched_paths(
     }
 
     let handle = app.clone();
-    let mut watcher =
-        notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-            if let Ok(event) = res {
-                if matches!(
-                    event.kind,
-                    EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)
-                ) {
-                    for p in event.paths {
-                        let _ = handle.emit(
-                            "file-changed",
-                            FileChanged {
-                                path: p.to_string_lossy().to_string(),
-                            },
-                        );
-                    }
+    let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+        if let Ok(event) = res {
+            if matches!(
+                event.kind,
+                EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)
+            ) {
+                for p in event.paths {
+                    let _ = handle.emit(
+                        "file-changed",
+                        FileChanged {
+                            path: p.to_string_lossy().to_string(),
+                        },
+                    );
                 }
             }
-        })
-        .map_err(|e| format!("Failed to create watcher: {e}"))?;
+        }
+    })
+    .map_err(|e| format!("Failed to create watcher: {e}"))?;
 
     for p in &paths {
         let path = Path::new(p);

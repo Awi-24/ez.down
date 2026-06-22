@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  publish:
     strategy:
       fail-fast: false
       matrix:
@@ -47,62 +47,25 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build Tauri bundles
-        run: npm run tauri build
-
-      - name: Upload platform bundles
-        uses: actions/upload-artifact@v4
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          name: bundles-${{ matrix.label }}
-          path: src-tauri/target/release/bundle/
-          if-no-files-found: error
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: Resolve release tag
-        id: tag
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-          else
-            version="$(jq -r .version src-tauri/tauri.conf.json)"
-            echo "name=v${version}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: List installer files
-        run: |
-          find artifacts -type f \( -name '*-setup.exe' -o -name '*.deb' -o -name '*.AppImage' \) -print
-
-      - name: Publish GitHub Release with installers
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.tag.outputs.name }}
-          name: ez.down ${{ steps.tag.outputs.name }}
-          generate_release_notes: true
-          body: |
+          tagName: ${{ github.ref_name }}
+          releaseName: ez.down ${{ github.ref_name }}
+          releaseBody: |
             ## Instaladores
 
             | Plataforma | Arquivo |
             | ---------- | ------- |
             | Windows | `*-setup.exe` (instalador NSIS) |
-            | Linux | `.deb` e `.AppImage` |
+            | Linux | `.deb`, `.AppImage` e `latest.json` para atualização in-app |
 
-            O GitHub também anexa automaticamente os arquivos de código-fonte (zip/tar.gz).
-          draft: false
-          prerelease: false
-          files: |
-            artifacts/**/*-setup.exe
-            artifacts/**/*.deb
-            artifacts/**/*.AppImage
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            Instalações existentes podem ser atualizadas pelo app em **Settings → Updates** ou rodando o novo instalador por cima da versão anterior.
+          generateReleaseNotes: true
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'rc') }}

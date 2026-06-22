@@ -5,6 +5,7 @@ import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialo
 import {
   readFile,
   writeFile,
+  renameFile,
   setWatchedPaths,
   fileMeta,
   dirname,
@@ -23,6 +24,14 @@ import {
   onPreferencesChange,
 } from "./preferences";
 import { initSettingsPanel } from "./settings-panel";
+import { initUpdateChecker } from "./updater";
+import {
+  buildSavePath,
+  ensureMdExtension,
+  nameFromPath,
+  sanitizeFilename,
+  stripMdExtension,
+} from "./naming";
 
 import "./styles.css";
 import "./themes/skins.css";
@@ -146,6 +155,9 @@ const tabs = new TabsManager(
   () => {
     showEmpty();
     void refreshWatched();
+  },
+  (tab, newName) => {
+    void renameTab(tab, newName);
   }
 );
 
@@ -187,6 +199,46 @@ async function pickFolder(): Promise<void> {
   if (typeof dir === "string") await sidebar.setRoot(dir);
 }
 
+function defaultSaveDirectory(tab: Tab): string | null {
+  if (tab.path) return dirname(tab.path);
+  return sidebar.getRoot();
+}
+
+async function renameTab(tab: Tab, rawName: string): Promise<void> {
+  if (isReaderMode()) return;
+  captureActiveWorking();
+
+  const name = sanitizeFilename(rawName);
+  if (!name) return;
+
+  if (!tab.path) {
+    tabs.setName(tab.id, name, true);
+    return;
+  }
+
+  const dir = dirname(tab.path);
+  const newPath = buildSavePath(name, dir);
+  if (newPath === tab.path) {
+    tabs.setName(tab.id, nameFromPath(newPath), false);
+    return;
+  }
+
+  try {
+    await renameFile(tab.path, newPath);
+    tabs.updatePath(tab.id, newPath);
+    if (tabs.active?.id === tab.id) {
+      baseDir = dirname(newPath);
+      sidebar.setActive(newPath);
+    }
+    await refreshWatched();
+    await sidebar.refresh();
+  } catch (e) {
+    console.error(e);
+    alert(`Could not rename file:\n${e}`);
+    tabs.render();
+  }
+}
+
 async function saveActive(): Promise<void> {
   if (isReaderMode()) return;
   const active = tabs.active;
@@ -196,11 +248,11 @@ async function saveActive(): Promise<void> {
   let path = active.path;
   if (!path) {
     const chosen = await saveDialog({
-      defaultPath: "untitled.md",
+      defaultPath: buildSavePath(active.name, defaultSaveDirectory(active)),
       filters: MD_FILTER,
     });
     if (!chosen) return;
-    path = chosen;
+    path = ensureMdExtension(chosen);
   }
 
   try {
@@ -208,7 +260,10 @@ async function saveActive(): Promise<void> {
     tabs.markSaved(active.id, path, content);
     activeModified = await fetchModified(path);
     updateMetrics(content, activeModified);
+    baseDir = dirname(path);
+    sidebar.setActive(path);
     await refreshWatched();
+    await sidebar.refresh();
   } catch (e) {
     console.error(e);
     alert(`Failed to save:\n${e}`);
@@ -284,8 +339,8 @@ async function exportPdf(): Promise<void> {
   if (!prose) return;
 
   const baseName = active.path
-    ? basename(active.path).replace(/\.(md|markdown|mdown|mkd)$/i, "")
-    : "untitled";
+    ? stripMdExtension(basename(active.path))
+    : active.name;
   const chosen = await saveDialog({
     defaultPath: `${baseName}.pdf`,
     filters: [{ name: "PDF", extensions: ["pdf"] }],
@@ -357,6 +412,7 @@ async function start(): Promise<void> {
   const prefs = loadPreferences();
   applyPreferences(prefs);
   initSettingsPanel(settingsToggle, settingsPanel);
+  initUpdateChecker();
 
   onPreferencesChange((next) => {
     applyPreferences(next);

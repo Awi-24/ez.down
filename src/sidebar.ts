@@ -13,13 +13,23 @@ interface RenderedDir {
  */
 export class Sidebar {
   private readonly dirs = new Map<string, RenderedDir>();
+  private rootPath: string | null = null;
 
   constructor(
     private readonly container: HTMLElement,
     private readonly onOpenFile: (path: string) => void
   ) {}
 
+  getRoot(): string | null {
+    return this.rootPath;
+  }
+
+  async refresh(): Promise<void> {
+    if (this.rootPath) await this.setRoot(this.rootPath);
+  }
+
   async setRoot(path: string): Promise<void> {
+    this.rootPath = path;
     this.dirs.clear();
     this.container.innerHTML = "";
 

@@ -48,6 +48,27 @@ pub fn write_bytes(path: String, content: Vec<u8>) -> Result<(), String> {
     std::fs::write(&path, content).map_err(|e| format!("Failed to save {path}: {e}"))
 }
 
+/// Rename a file on disk.
+#[tauri::command]
+pub fn rename_file(from: String, to: String) -> Result<(), String> {
+    if from == to {
+        return Ok(());
+    }
+    if !Path::new(&from).is_file() {
+        return Err(format!("File not found: {from}"));
+    }
+    if Path::new(&to).exists() {
+        return Err(format!("A file already exists at {to}"));
+    }
+    if let Some(parent) = Path::new(&to).parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create folder {}: {e}", parent.display()))?;
+        }
+    }
+    std::fs::rename(&from, &to).map_err(|e| format!("Failed to rename {from} to {to}: {e}"))
+}
+
 /// List the immediate children of a directory. Directories first, then files,
 /// each alphabetically. Hidden entries (dotfiles) are skipped.
 #[tauri::command]
@@ -91,7 +112,8 @@ pub struct FileMeta {
 /// Return on-disk metadata (size + last modified) for a file.
 #[tauri::command]
 pub fn file_meta(path: String) -> Result<FileMeta, String> {
-    let meta = std::fs::metadata(&path).map_err(|e| format!("Failed to read metadata for {path}: {e}"))?;
+    let meta =
+        std::fs::metadata(&path).map_err(|e| format!("Failed to read metadata for {path}: {e}"))?;
     let modified_ms = meta
         .modified()
         .ok()

@@ -5,6 +5,16 @@ import {
   type Preferences,
 } from "./preferences";
 import { THEME_GROUPS, THEME_LABELS, type ThemeId } from "./themes";
+import {
+  checkForUpdates,
+  installUpdate,
+  onUpdateStatus,
+  type UpdateStatus,
+} from "./updater";
+import { isTauri } from "@tauri-apps/api/core";
+
+const GITHUB_USER = "https://github.com/Awi-24";
+const GITHUB_REPO = "https://github.com/Awi-24/ez.down";
 
 export interface SettingsPanelHandle {
   close: () => void;
@@ -17,6 +27,81 @@ export function initSettingsPanel(
   panel: HTMLElement
 ): SettingsPanelHandle {
   let open = false;
+  let updateStatus: UpdateStatus = { state: "idle" };
+
+  const renderUpdateBadge = (): void => {
+    toggleBtn.classList.toggle(
+      "has-update",
+      updateStatus.state === "available" || updateStatus.state === "downloading"
+    );
+  };
+
+  const updateSectionHtml = (): string => {
+    if (!isTauri()) return "";
+
+    let body = "";
+    switch (updateStatus.state) {
+      case "checking":
+        body = `<p class="settings-update-msg">Checking for updates…</p>`;
+        break;
+      case "available":
+        body = `
+          <p class="settings-update-msg settings-update-available">
+            Version <strong>${escapeHtml(updateStatus.version)}</strong> is available.
+          </p>
+          ${updateStatus.notes ? `<p class="settings-update-notes">${escapeHtml(updateStatus.notes)}</p>` : ""}
+          <button type="button" class="btn btn-primary settings-update-install">Install update</button>`;
+        break;
+      case "downloading":
+        body = `
+          <p class="settings-update-msg">Downloading… ${updateStatus.progress}%</p>
+          <div class="settings-update-progress" role="progressbar" aria-valuenow="${updateStatus.progress}" aria-valuemin="0" aria-valuemax="100">
+            <span style="width:${updateStatus.progress}%"></span>
+          </div>`;
+        break;
+      case "uptodate":
+        body = `<p class="settings-update-msg">You are on the latest version.</p>`;
+        break;
+      case "error":
+        body = `<p class="settings-update-msg settings-update-error">${escapeHtml(updateStatus.message)}</p>`;
+        break;
+      default:
+        body = `<p class="settings-update-msg">Check GitHub for new releases.</p>`;
+    }
+
+    return `
+        <section class="settings-section">
+          <h3 class="settings-section-title">Updates</h3>
+          <div class="settings-update">
+            ${body}
+            <button type="button" class="btn settings-update-check"${
+              updateStatus.state === "checking" || updateStatus.state === "downloading"
+                ? " disabled"
+                : ""
+            }>Check for updates</button>
+          </div>
+        </section>`;
+  };
+
+  const bindUpdateControls = (): void => {
+    panel.querySelector(".settings-update-check")?.addEventListener("click", () => {
+      void checkForUpdates(false);
+    });
+    panel.querySelector(".settings-update-install")?.addEventListener("click", () => {
+      void installUpdate();
+    });
+  };
+
+  const bindAboutLinks = (): void => {
+    panel.querySelectorAll<HTMLElement>("[data-open-url]").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.preventDefault();
+        const url = el.dataset.openUrl;
+        if (!url) return;
+        void openExternal(url);
+      });
+    });
+  };
 
   const render = (prefs: Preferences): void => {
     panel.innerHTML = `
@@ -49,15 +134,27 @@ export function initSettingsPanel(
         </section>
         <section class="settings-section">
           <h3 class="settings-section-title">Layout</h3>
-          ${toggleRow("sidebar-collapsed", "Start with sidebar hidden", prefs.sidebarCollapsedOnStart, "Focus on the document — sidebar stays collapsed until you open it.")}
-          ${toggleRow("wide-column", "Wide reading column", prefs.wideColumn, "Use a broader text column for comfortable reading.")}
-          ${toggleRow("show-statusbar", "Show status bar", prefs.showStatusbar, "Word, character, and line counts at the bottom.")}
+          ${toggleRow("sidebar-collapsed", "Start with sidebar hidden", prefs.sidebarCollapsedOnStart, "Hide sidebar on start.")}
+          ${toggleRow("wide-column", "Wide reading column", prefs.wideColumn, "Wider text column.")}
+          ${toggleRow("show-statusbar", "Show status bar", prefs.showStatusbar, "Document stats.")}
         </section>
         <section class="settings-section">
           <h3 class="settings-section-title">Editing</h3>
-          ${toggleRow("reader-mode", "Reader mode", prefs.readerMode, "View documents only — disables editing, saving, and new files.")}
+          ${toggleRow("reader-mode", "Reader mode", prefs.readerMode, "View only, no edits.")}
         </section>
-        <p class="settings-version">ez.down <span id="settings-version-label"></span></p>
+        ${updateSectionHtml()}
+        <section class="settings-section settings-about">
+          <h3 class="settings-section-title">About</h3>
+          <p class="settings-about-text">
+            Open source by
+            <button type="button" class="settings-link" data-open-url="${GITHUB_USER}">Awi-24</button>.
+          </p>
+          <div class="settings-about-links">
+            <button type="button" class="settings-link" data-open-url="${GITHUB_USER}">github.com/Awi-24</button>
+            <button type="button" class="settings-link" data-open-url="${GITHUB_REPO}">Repository</button>
+          </div>
+          <p class="settings-version">ez.down <span id="settings-version-label"></span></p>
+        </section>
       </div>
     `;
 
@@ -75,6 +172,8 @@ export function initSettingsPanel(
     bindToggle(panel, "wide-column", "wideColumn");
     bindToggle(panel, "show-statusbar", "showStatusbar");
     bindToggle(panel, "reader-mode", "readerMode");
+    bindUpdateControls();
+    bindAboutLinks();
 
     const versionEl = panel.querySelector("#settings-version-label");
     if (versionEl) versionEl.textContent = __APP_VERSION__;
@@ -94,6 +193,12 @@ export function initSettingsPanel(
   toggleBtn.setAttribute("aria-expanded", "false");
 
   toggleBtn.addEventListener("click", () => setOpen(!open));
+
+  onUpdateStatus((next) => {
+    updateStatus = next;
+    renderUpdateBadge();
+    if (open) render(loadPreferences());
+  });
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && open) setOpen(false);
@@ -138,3 +243,20 @@ function bindToggle(
 }
 
 declare const __APP_VERSION__: string;
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function openExternal(url: string): Promise<void> {
+  if (isTauri()) {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}

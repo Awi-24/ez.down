@@ -6,7 +6,14 @@ use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut builder = tauri::Builder::default();
+    let mut builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+
+    #[cfg(desktop)]
+    {
+        builder = builder
+            .plugin(tauri_plugin_process::init())
+            .plugin(tauri_plugin_updater::Builder::new().build());
+    }
 
     // Single instance: if ezdown is already running and the user opens another
     // .md (double-click / "open with"), forward the path to the running window
@@ -43,6 +50,7 @@ pub fn run() {
             commands::read_file,
             commands::write_file,
             commands::write_bytes,
+            commands::rename_file,
             commands::list_dir,
             commands::file_meta,
             commands::take_pending_open,

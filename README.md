@@ -28,6 +28,7 @@ and read or write with a clean, modern interface.
 - 📤 **Export to PDF** from the top bar or context menu.
 - 🖱️ **Custom context menus** per area (editor, tabs, file tree).
 - 🔁 **Auto-reload** when a file changes outside the app.
+- ⬆️ **In-app updates** — check and install new versions from Settings (Windows & Linux).
 
 ## Settings
 
@@ -40,12 +41,13 @@ Open **Settings** at the bottom of the sidebar:
 | **Wide reading column** | Broader text column (920px) |
 | **Show status bar** | Toggle word/line counts |
 | **Reader mode** | Read-only — no editing or saving |
+| **Updates** | Check for updates and install in place |
 
 Preferences are stored locally and persist across sessions.
 
 ## Beta release
 
-Current version: **1.0.0-beta.1**
+Current version: **1.0.0-beta.3**
 
 ## Tech stack
 
@@ -89,8 +91,25 @@ xdg-mime query default text/markdown
 ### GitHub Release (CI)
 
 Pushes to tags matching `v*` trigger [`.github/workflows/release.yml`](.github/workflows/release.yml),
-which builds and attaches the Windows NSIS installer (`.exe`), Linux `.deb`, and AppImage
-to the GitHub Release (alongside GitHub's automatic source archives).
+which builds signed installers, uploads them to GitHub Releases, and publishes a `latest.json`
+manifest for in-app updates.
+
+### Updater signing (required for CI)
+
+Generate a key pair once (keep the private key secret):
+
+```bash
+npm run tauri -- signer generate --ci -w ~/.tauri/ezdown.key -p "" -f
+```
+
+Add GitHub repository secrets:
+
+| Secret | Value |
+| ------ | ----- |
+| `TAURI_SIGNING_PRIVATE_KEY` | Full contents of `~/.tauri/ezdown.key` |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Leave empty if the key has no password |
+
+The public key is already in `src-tauri/tauri.conf.json`. **Do not commit the private key.**
 
 1. Bump the version in `package.json`, `src-tauri/tauri.conf.json`, and
    `src-tauri/Cargo.toml`.
@@ -98,10 +117,10 @@ to the GitHub Release (alongside GitHub's automatic source archives).
 
 ```bash
 git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
-git commit -m "chore: release v1.0.0-beta.1"
-git tag v1.0.0-beta.1
+git commit -m "chore: release v1.0.0-beta.3"
+git tag v1.0.0-beta.3
 git push origin main
-git push origin v0.2.0
+git push origin v1.0.0-beta.3
 ```
 
 You can also run the workflow manually from the **Actions** tab (`workflow_dispatch`).
